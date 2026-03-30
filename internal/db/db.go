@@ -38,6 +38,7 @@ func (d *DB) Migrate() error {
 		&domain.Routine{},
 		&domain.Project{},
 		&domain.Goal{},
+		&domain.SecretEntry{},
 	)
 }
 
@@ -161,4 +162,41 @@ func (d *DB) Goals() *GoalRepo { return &GoalRepo{db: d.db} }
 func (r *GoalRepo) List(ctx context.Context, companyID string) ([]domain.Goal, error) {
 	var goals []domain.Goal
 	return goals, r.db.WithContext(ctx).Where("company_id = ?", companyID).Find(&goals).Error
+}
+
+// ---- SecretEntry repository ----
+
+// SecretEntryRepo provides access to encrypted secret storage.
+// It is intentionally kept internal — callers should use the secrets.SecretStore
+// interface rather than this repo directly.
+type SecretEntryRepo struct{ db *gorm.DB }
+
+func (d *DB) SecretEntries() *SecretEntryRepo { return &SecretEntryRepo{db: d.db} }
+
+func (r *SecretEntryRepo) List(ctx context.Context, companyID string) ([]domain.SecretEntry, error) {
+	var entries []domain.SecretEntry
+	return entries, r.db.WithContext(ctx).Where("company_id = ?", companyID).Find(&entries).Error
+}
+
+func (r *SecretEntryRepo) Get(ctx context.Context, id string) (*domain.SecretEntry, error) {
+	var e domain.SecretEntry
+	if err := r.db.WithContext(ctx).First(&e, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &e, nil
+}
+
+func (r *SecretEntryRepo) Create(ctx context.Context, e *domain.SecretEntry) error {
+	return r.db.WithContext(ctx).Create(e).Error
+}
+
+// UpdateEncryptedVal replaces the encrypted value for the given secret entry.
+func (r *SecretEntryRepo) UpdateEncryptedVal(ctx context.Context, id string, encVal []byte) error {
+	return r.db.WithContext(ctx).Model(&domain.SecretEntry{}).
+		Where("id = ?", id).
+		Updates(map[string]any{"encrypted_val": encVal}).Error
+}
+
+func (r *SecretEntryRepo) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&domain.SecretEntry{}, "id = ?", id).Error
 }

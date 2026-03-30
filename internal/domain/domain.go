@@ -136,9 +136,36 @@ type Goal struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-// SecretRef is a reference to a secret by name.
+// SecretScope defines the visibility of a secret.
+type SecretScope string
+
+const (
+	SecretScopeGlobal   SecretScope = "global"
+	SecretScopePerAgent SecretScope = "per-agent"
+)
+
+// SecretRef is a reference to a registered secret. The secret value is never
+// stored in or returned via this struct — only metadata is exposed.
 type SecretRef struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Scope       string `json:"scope"` // "global" | "per-agent"
+	ID          string      `json:"id"`
+	CompanyID   string      `json:"companyId"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Scope       SecretScope `json:"scope"`
+	CreatedAt   time.Time   `json:"createdAt"`
+	UpdatedAt   time.Time   `json:"updatedAt"`
+	// Secret value is NEVER stored here after write.
+}
+
+// SecretEntry is the database storage model for an encrypted secret value.
+// All fields carry json:"-" to prevent accidental serialisation.
+type SecretEntry struct {
+	ID           string    `json:"-" gorm:"primaryKey"`
+	CompanyID    string    `json:"-" gorm:"index"`
+	Name         string    `json:"-"`
+	Description  string    `json:"-"`
+	Scope        string    `json:"-"`
+	EncryptedVal []byte    `json:"-" gorm:"type:blob"`
+	CreatedAt    time.Time `json:"-"`
+	UpdatedAt    time.Time `json:"-"`
 }
